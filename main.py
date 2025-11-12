@@ -22,16 +22,13 @@ async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
             return {"word": None, "data": []}
 
         max_retries = 3
-        retry_delay = 2  # seconds
+        retry_delay = 1
 
-        # attempt to fetch with retry logic
         for attempt in range(1, max_retries + 1):
+            url = f"{BASE_URL}/{l}/verbe/{q}.php"
+            print(f"--Calling to {url} in the {attempt} time--")
             try:
-                response = requests.get(
-                    f"{BASE_URL}/{l}/verbe/{q}.php",
-                    timeout=5
-                )
-                response.raise_for_status()  # raise error for non-200 codes
+                response = requests.get(url, timeout=5)
                 soup = BeautifulSoup(response.content, "html.parser")
                 break  # success → stop retrying
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
@@ -44,7 +41,6 @@ async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
         else:
             raise HTTPException(status_code=504, detail="Failed to fetch after retries")
 
-        # continue your existing parsing logic
         elements = soup.find_all(["h2", "div"], class_=["mode", "tempstab", "bloc"])
         data = []
         current_section = None
