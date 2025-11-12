@@ -7,6 +7,7 @@ import re
 import httpx
 from dotenv import load_dotenv
 import os
+import time
 
 app = FastAPI()
 
@@ -19,9 +20,31 @@ async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
     try:
         if not l or not q:
             return {"word": None, "data": []}
-        
-        soup = BeautifulSoup(requests.get(f"{BASE_URL}/{l}/verbe/{q}.php").content, "html.parser")
 
+        max_retries = 3
+        retry_delay = 2  # seconds
+
+        # attempt to fetch with retry logic
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.get(
+                    f"{BASE_URL}/{l}/verbe/{q}.php",
+                    timeout=5
+                )
+                response.raise_for_status()  # raise error for non-200 codes
+                soup = BeautifulSoup(response.content, "html.parser")
+                break  # success → stop retrying
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                if attempt == max_retries:
+                    raise HTTPException(
+                        status_code=504,
+                        detail=f"Request timed out after {max_retries} attempts: {str(e)}"
+                    )
+                time.sleep(retry_delay)
+        else:
+            raise HTTPException(status_code=504, detail="Failed to fetch after retries")
+
+        # continue your existing parsing logic
         elements = soup.find_all(["h2", "div"], class_=["mode", "tempstab", "bloc"])
         data = []
         current_section = None
