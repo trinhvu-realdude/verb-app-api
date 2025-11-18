@@ -25,7 +25,7 @@ async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
         retry_delay = 1
 
         for attempt in range(1, max_retries + 1):
-            url = f"{BASE_URL}/{l}/verbe/{q}.php"
+            url = f"{BASE_URL}/{l}/verbe/{q.replace("'", "_").replace(" ", "_").strip()}.php"
             print(f"--Calling to {url} in the {attempt} time--")
             try:
                 response = requests.get(url, timeout=5)
@@ -80,7 +80,7 @@ async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
                 else:
                     raw_lines = tempscorps.decode_contents().split("<br/>")
                     lines = [
-                        re.sub(r"\s+", " ", re.sub(r"<.*?>", "", line)).strip()
+                        re.sub(r"\s+", " ", line).strip()
                         for line in raw_lines if re.sub(r"<.*?>", "", line).strip()
                     ]
                     block_data = {
