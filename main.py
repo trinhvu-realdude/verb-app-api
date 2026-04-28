@@ -82,7 +82,7 @@ async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
                     block_data = {
                         "title": tempsheader_text,
                         "type": "table",
-                        "rows": rows
+                        "data": rows
                     }
                 else:
                     raw_lines = tempscorps.decode_contents().split("<br/>")
