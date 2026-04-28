@@ -74,8 +74,16 @@ async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
 
                 table = tempscorps.find("table")
                 if table:
+                    # rows = [
+                    #     [td.get_text(strip=True) for td in tr.find_all("td")]
+                    #     for tr in table.find_all("tr")
+                    #     if any(td.get_text(strip=True) for td in tr.find_all("td"))
+                    # ]
                     rows = [
-                        [td.get_text(strip=True) for td in tr.find_all("td")]
+                        [
+                            re.sub(r"\s+", " ", td.decode_contents()).strip()
+                            for td in tr.find_all("td")
+                        ]
                         for tr in table.find_all("tr")
                         if any(td.get_text(strip=True) for td in tr.find_all("td"))
                     ]
@@ -90,6 +98,7 @@ async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
                         re.sub(r"\s+", " ", line).strip()
                         for line in raw_lines if re.sub(r"<.*?>", "", line).strip()
                     ]
+                    print(f"Extracted lines for '{tempsheader_text}': {lines}")
                     block_data = {
                         "title": tempsheader_text,
                         "type": "lines",
