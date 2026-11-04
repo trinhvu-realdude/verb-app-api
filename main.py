@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -21,6 +21,7 @@ app.add_middleware(
 load_dotenv()
 
 BASE_URL = os.getenv("BASE_URL")
+FREE_DICTIONARY_URL = os.getenv("FREE_DICTIONARY_URL")
 
 @app.get("/api/v1/search-word")
 async def search_word(l: Union[str, None] = None, q: Union[str, None] = None):
@@ -119,3 +120,53 @@ async def check_word(l: Union[str, None] = None, q: Union[str, None] = None):
     with httpx.Client() as client:
         response = client.get(f"{BASE_URL}/ajx/moteur.php", params={"l": l, "q": q})
         return {"data": response.json()}
+
+@app.get("/api/v1/get-phonetic")
+async def get_phonetic(word: Optional[str] = None,partOfSpeech: Optional[str] = None):
+    if not word:
+        return {
+            "word": word,
+            "pronunciations": []
+        }
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{FREE_DICTIONARY_URL}{word}")
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail="Error fetching phonetic data"
+            )
+        data = response.json()
+        entries = data.get("entries", [])
+        pronunciations = {}
+
+        for entry in entries:
+            pos = entry.get("partOfSpeech")
+
+            if not pos:
+                continue
+
+            if partOfSpeech and pos != partOfSpeech:
+                continue
+
+            if pos not in pronunciations:
+                pronunciations[pos] = None
+
+            for pronunciation in entry.get("pronunciations", []):
+                if (
+                    pronunciation.get("type") == "ipa"
+                    and pronunciation.get("text")
+                ):
+                    pronunciations[pos] = pronunciation["text"]
+                    break
+
+        return {
+            "word": word,
+            "pronunciations": [
+                {
+                    "partOfSpeech": pos,
+                    "phonetic": phonetic
+                }
+                for pos, phonetic in pronunciations.items()
+            ]
+        }
