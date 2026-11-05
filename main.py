@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import os
 import time
 
+from constant import PART_OF_SPEECH_MAP
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -122,22 +124,31 @@ async def check_word(l: Union[str, None] = None, q: Union[str, None] = None):
         return {"data": response.json()}
 
 @app.get("/api/v1/get-phonetic")
-async def get_phonetic(word: Optional[str] = None,partOfSpeech: Optional[str] = None):
-    if not word:
+async def get_phonetic(l: Optional[str] = None, w: Optional[str] = None, pos: Optional[str] = None):
+    if not w:
         return {
-            "word": word,
+            "language": l,
+            "word": w,
             "pronunciations": []
         }
+
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{FREE_DICTIONARY_URL}{word}")
+        response = await client.get(
+            f"{FREE_DICTIONARY_URL}{l}/{w}"
+        )
 
         if response.status_code != 200:
             raise HTTPException(
                 status_code=response.status_code,
                 detail="Error fetching phonetic data"
             )
+
         data = response.json()
         entries = data.get("entries", [])
+
+        # Convert frontend partOfSpeech to English value
+        normalized_pos = normalize_part_of_speech(l, pos)
+
         pronunciations = {}
 
         for entry in entries:
@@ -146,7 +157,8 @@ async def get_phonetic(word: Optional[str] = None,partOfSpeech: Optional[str] = 
             if not pos:
                 continue
 
-            if partOfSpeech and pos != partOfSpeech:
+            # Filter by normalized partOfSpeech
+            if normalized_pos and pos != normalized_pos:
                 continue
 
             if pos not in pronunciations:
@@ -161,7 +173,8 @@ async def get_phonetic(word: Optional[str] = None,partOfSpeech: Optional[str] = 
                     break
 
         return {
-            "word": word,
+            "language": l,
+            "word": w,
             "pronunciations": [
                 {
                     "partOfSpeech": pos,
@@ -170,3 +183,14 @@ async def get_phonetic(word: Optional[str] = None,partOfSpeech: Optional[str] = 
                 for pos, phonetic in pronunciations.items()
             ]
         }
+
+def normalize_part_of_speech(language: str, part_of_speech: str):
+    if not part_of_speech:
+        return None
+
+    language_map = PART_OF_SPEECH_MAP.get(language)
+
+    if not language_map:
+        return part_of_speech
+
+    return language_map.get(part_of_speech.lower(), part_of_speech)
