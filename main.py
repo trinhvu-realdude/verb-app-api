@@ -280,13 +280,15 @@ async def synonyms_antonyms(l: Optional[str] = None, w: Optional[str] = None, po
     antonyms = set()
 
     for entry in entries:
-        entry_pos = entry.get("partOfSpeech")
-
-        if normalized_pos and entry_pos != normalized_pos:
+        if normalized_pos and entry.get("partOfSpeech") != normalized_pos:
             continue
 
         synonyms.update(entry.get("synonyms") or [])
         antonyms.update(entry.get("antonyms") or [])
+
+        for sense in entry.get("senses") or []:
+            synonyms.update(sense.get("synonyms") or [])
+            antonyms.update(sense.get("antonyms") or [])
 
     return {
         "language": l,
